@@ -15,25 +15,28 @@ class MeetingRequest {
 
   MeetingRequest(this.id, this.meeting) {
     this.counter = 0;
-    this.isAccepted = false;
+    this.isAccepted = null;
   }
-
+//  Activity(this.date, ScheduleTiming timing, String id, String name, bool isImportant)
   void accept() async {
     this.counter++;
-    isAccepted = (counter >= meeting.groupUID.length);
+    isAccepted = (counter >= meeting.groupUID.length) ? true : null;
     if (isAccepted) {
       meeting.groupUID.forEach((uid) async {
         User user = await DatabaseMethods(uid: uid).getUserByUID(uid);
+        await user.addActivity(new Activity(meeting.date, meeting.slot, id, meeting.name, meeting.isImportant, null, true));
         user.deleteMeetingRequest(this);
-        await user.addEvent(meeting.day, new Activity(meeting.name, true, false), meeting.slot);
+//        DateTime now = DateTime.now();
+
       });
-      await DatabaseMethods(uid: meeting.userUID)
-          .getUserByUID(meeting.userUID)
-          .then((user) => user.addEvent(meeting.day, new Activity(meeting.name, true, false), meeting.slot));
+      User requester = await DatabaseMethods(uid: meeting.userUID).getUserByUID(meeting.userUID);
+      await requester.addActivity(new Activity(meeting.date, meeting.slot, id, meeting.name, meeting.isImportant,null, true));
     }
   }
 
   void reject() {
+    isAccepted = false;
+    //Rishi you can do your listen
     meeting.groupUID.forEach((uid) async {
       User user = await DatabaseMethods(uid: uid).getUserByUID(uid);
       await user.deleteMeetingRequest(this);

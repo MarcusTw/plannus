@@ -1,8 +1,11 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:plannusandroidversion/models/meeting/meeting_request.dart';
+import 'package:plannusandroidversion/models/notifications/custom_notification.dart';
+import 'package:plannusandroidversion/models/rating/rateable.dart';
 import 'package:plannusandroidversion/models/timetable/activity.dart';
-import 'package:plannusandroidversion/models/timetable/schedule_time.dart';
-import 'package:plannusandroidversion/models/timetable/schedule_timing.dart';
+import 'package:plannusandroidversion/models/timetable/day_schedule.dart';
+import 'package:plannusandroidversion/models/timetable/timetable_event.dart';
+import 'package:plannusandroidversion/models/timetable/weekly_event.dart';
 import 'package:plannusandroidversion/services/database.dart';
 import 'package:plannusandroidversion/models/timetable/timetable.dart';
 
@@ -15,11 +18,11 @@ class User {
   //User properties
   String name;
   TimeTable timetable;
-  List<MeetingRequest> requests;
+  List<CustomNotification> requests;
 
   User({this.uid, this.name}) {
     timetable = TimeTable.emptyTimeTable();
-    requests = new List<MeetingRequest>();
+    requests = new List<CustomNotification>();
   }
 
   factory User.fromJson(Map<String, dynamic> data) => _$UserFromJson(data);
@@ -32,12 +35,17 @@ class User {
   }
 
   Future<void> addMeetingRequest(MeetingRequest mr) {
-    this.requests.add(mr);
+    this.requests.add(CustomNotification.mrNotification(mr));
     return this.update();
   }
 
   Future<void> deleteMeetingRequest(MeetingRequest mr) {
-    this.requests.removeWhere((req) => req.meeting.uid == mr.meeting.uid);
+    this.requests.removeWhere((req) => req.meetingRequest != null && req.meetingRequest.meeting.uid == mr.meeting.uid);
+    return this.update();
+  }
+
+  Future<void> deleteReviewNotification(TimeTableEvent event) {
+    this.requests.removeWhere((req) => req.rateable != null && req.rateable.id == event.id);
     return this.update();
   }
 
@@ -45,8 +53,52 @@ class User {
     return DatabaseMethods(uid: this.uid).updateUserData2(this);
   }
 
-  Future<void> addEvent(int day, Activity activity, ScheduleTiming slot) {
-    this.timetable.alter(day, activity.name, ScheduleTime(time: slot.start), ScheduleTime(time: slot.end), activity.isImportant);
+  Future<void> addWeeklyEvent(WeeklyEvent activity) {
+    this.timetable.addWeekly(activity);
     return this.update();
+  }
+
+  Future<void> addActivity(Activity activity) {
+    DateTime refDate = DateTime(activity.startDate.year, activity.startDate.month, activity.startDate.day);
+    DaySchedule ref = this.timetable.timetable[refDate] ?? DaySchedule.noSchedule;
+    ref.addEvent(activity);
+    this.timetable.timetable[refDate] = ref;
+    return this.update();
+  }
+
+  Future<void> getReviewNotice() async {
+    DateTime now = DateTime.now();
+    List<Rateable> rateableList = await DatabaseMethods().getRateableList();
+    DateTime refDate = DateTime(now.year, now.month, now.day);
+    refDate = refDate.add(Duration(days: -7));
+    List<TimeTableEvent> overdue = new List<TimeTableEvent>();
+    while (refDate.isBefore(now)) {
+      DaySchedule ref = this.timetable.timetable[refDate];
+      if (ref != null) {
+        for (TimeTableEvent event in ref.ds) {
+          if (event != null && event.endDate.isBefore(now)) {
+            if (overdue.every((e) => e.name != event.name)) {
+              bool hasRated = await DatabaseMethods().checkRated(name, event.name);
+              if (!hasRated) {overdue.add(event);
+              }
+            }
+          }
+        }
+      }
+      refDate = refDate.add(Duration(days: 1));
+    }
+    for (TimeTableEvent e in overdue) {
+      if (rateableList.any((r) => r.event.name == e.name)) {
+        if (rateableList.where((r) => r.event.name == e.name).first.reviews.containsKey(this.name)) {
+          overdue.remove(e);
+        }
+      }
+    }
+    for (TimeTableEvent e in overdue) {
+      if (!requests.any((req) => req.rateable != null && req.rateable.id == e.id)) {
+        requests.add(CustomNotification.reviewNotification(e));
+      }
+    }
+    return overdue.isNotEmpty ? this.update() : null;
   }
 }

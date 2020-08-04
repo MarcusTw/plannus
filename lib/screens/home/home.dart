@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:plannusandroidversion/messages/constants.dart';
-import 'package:plannusandroidversion/models/timetable/timetable.dart';
+import 'package:plannusandroidversion/models/timetable/timetable_widget.dart';
+import 'package:plannusandroidversion/models/timetable/event_adder.dart';
 import 'package:plannusandroidversion/models/todo/todo_main.dart';
 import 'package:plannusandroidversion/models/todo/todo_models/todo_data.dart';
 import 'package:plannusandroidversion/models/user.dart';
+import 'package:plannusandroidversion/screens/drawer/my_drawer.dart';
 import 'package:plannusandroidversion/models/timetable/weekly_event_adder.dart';
 import 'package:plannusandroidversion/screens/drawer/notification_page.dart';
 import 'package:plannusandroidversion/models/user_search.dart';
@@ -18,7 +20,6 @@ import 'package:bottom_navy_bar/bottom_navy_bar.dart';
 import 'package:plannusandroidversion/services/database.dart';
 import 'package:plannusandroidversion/shared/loading.dart';
 import 'package:provider/provider.dart';
-import 'package:timer_builder/timer_builder.dart';
 
 class Home extends StatefulWidget {
   Home({Key key, this.title}) : super(key: key);
@@ -48,12 +49,14 @@ class _HomeState extends State<Home> {
         content: Container(
           child: Row(
             children: <Widget>[
-              Text(
-                Constants.myName == null || Constants.myName.isEmpty
-                    ? 'Please update your name at Profile.'
-                    : 'Please update your handle at Profile.',
-                style: GoogleFonts.biryani(
-                  fontSize: 16,
+              Expanded(
+                child: Text(
+                  Constants.myName == null || Constants.myName.isEmpty
+                      ? 'Please update your name at Profile.'
+                      : 'Please update your handle at Profile.',
+                  style: GoogleFonts.biryani(
+                    fontSize: 16,
+                  ),
                 ),
               )
             ],
@@ -108,7 +111,7 @@ class _HomeState extends State<Home> {
         //home
         Provider<User>.value(value: user,
             child: Scaffold(
-                backgroundColor: Colors.yellow, body: TimeTableWidget()
+                backgroundColor: Colors.yellow, body: TimeTableWidget(private: false,)
             )
         ),
         //TimeTable.emptyTimeTable()))),
@@ -120,9 +123,7 @@ class _HomeState extends State<Home> {
           ],
           child: Profile()),
       ];
-      return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
+      return Scaffold(
           backgroundColor: Colors.deepPurple,
           appBar: AppBar(
             title: Text(header,
@@ -135,7 +136,7 @@ class _HomeState extends State<Home> {
               Container(
                 margin: EdgeInsets.only(top: 1.5),
                 child: IconButton(
-                  icon: Icon(Icons.add, color: Colors.white),
+                  icon: Icon(Icons.add, color: Colors.white, key: Key('Add timetable'),),
                   tooltip: 'Add',
                   onPressed: () {
                     showDialog(
@@ -143,7 +144,7 @@ class _HomeState extends State<Home> {
                       context: context,
                       builder: (BuildContext context) {
                         return Dialog(
-                          child: Provider<User>.value(value: user, child: WeeklyEventAdder()),
+                          child: Provider<User>.value(value: user, child: EventAdder()),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.all(Radius.circular(35))
                           )
@@ -153,28 +154,28 @@ class _HomeState extends State<Home> {
                   },
                 ),
               ),
-              TimerBuilder.periodic(
-                Duration(seconds: 1),
-                builder:(context) {
-                  return Center(
-                    child: Container(
-                      margin: EdgeInsets.only(top: 1.5),
-                      height: 35,
-                      width: 75,
-                      child: Row(
-                        children: <Widget>[
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8.0, right: 8),
-                            child: Icon(Icons.access_time, size: 18,),
-                          ),
-                          Text("${getSystemTime()}",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                  ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
+//              TimerBuilder.periodic(
+//                Duration(seconds: 1),
+//                builder:(context) {
+//                  return Center(
+//                    child: Container(
+//                      margin: EdgeInsets.only(top: 1.5),
+//                      height: 35,
+//                      width: 75,
+//                      child: Row(
+//                        children: <Widget>[
+//                          Padding(
+//                            padding: const EdgeInsets.only(left: 8.0, right: 8),
+//                            child: Icon(Icons.access_time, size: 18,),
+//                          ),
+//                          Text("${getSystemTime()}",
+//                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+//                  ),
+//                        ],
+//                      ),
+//                    ),
+//                  );
+//                }),
               FlatButton.icon(
                   icon: Icon(Icons.person,
                     color: Colors.yellow,
@@ -183,9 +184,6 @@ class _HomeState extends State<Home> {
                       style: TextStyle(color: Colors.yellow)
                   ),
                   onPressed: () async {
-                    Constants.myName = null;
-                    Constants.myHandle = null;
-                    Constants.myProfilePhoto = null;
                     Constants.resetAll();
                     await auth.googleSignIn.isSignedIn().then((value) async {
                       if (value) {
@@ -202,115 +200,9 @@ class _HomeState extends State<Home> {
             ],
           ),
           //********************DRAWER***********************//
-          drawer: Drawer(
-            child: ListView(
-              children: [
-                DrawerHeader(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [
-                      Colors.deepOrange,
-                      Colors.orangeAccent,
-                    ],
-                      begin: Alignment.topLeft,
-                      end: new Alignment(-1, -1),)
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Image(image: AssetImage('assets/planNUS.png'),height: 80, width: 40, ),
-                  )
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8.0, 5.0, 8.0, 5.0),
-                  child: InkWell(
-                    splashColor: Colors.orange,
-                    onTap: () async {
-                      QuerySnapshot _querySnapshot = Provider.of<QuerySnapshot>(context, listen: false);
-                      if (_querySnapshot != null) {
-                        showSearch(
-                            context: context,
-                            delegate: UserSearch(_querySnapshot, user)
-                        );
-                      } else {
-                        await Future.delayed(Duration(seconds: 1))
-                            .whenComplete(() => _querySnapshot = Provider.of<QuerySnapshot>(context, listen: false));
-                        showSearch(
-                            context: context,
-                            delegate: UserSearch(_querySnapshot, user)
-                        );
-                      }
-                    },
-                    child: Container(
-                      height: 40,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: <Widget>[
-                          Icon(Icons.people),
-                          SizedBox(width: 20),
-                          Text('Meet', style: TextStyle(fontSize: 20.0),)
-                        ],
-                      ),
-                    )
-                  ),
-                ),
-                Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 5, 8, 5),
-                    child: InkWell(
-                        splashColor: Colors.orange,
-                        onTap: () {
-                          showDialog(
-                              barrierDismissible: false,
-                              context: context,
-                              builder: (BuildContext context) {
-                                return Dialog(
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.all(Radius.circular(12))
-                                  ),
-                                  child: StreamProvider<User>.value(
-                                    value: DatabaseMethods(uid: user.uid).getUserStream2(),
-                                    child: NotificationPage(currUser: user,),
-                                    catchError: (context, e) {
-                                      return user;
-                                    },
-                                  ),
-                                );
-                              });
-                        },
-                        child: Container(
-                            height: 40,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: <Widget>[
-                                Icon(Icons.notifications),
-                                SizedBox(width: 20),
-                                Text('Notifications', style: TextStyle(fontSize: 20.0),),
-                                SizedBox(width: 100),
-                                Text(user.requests == null ? '0' : user.requests.length.toString() ,
-                                    style: TextStyle(fontSize: 20.0, color: Colors.red[800]))
-                              ],
-                            )
-                        )
-                    )
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 5, 8, 5),
-                  child: InkWell(
-                    splashColor: Colors.orange,
-                    onTap: () {},
-                    child: Container(
-                      height: 40,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: <Widget>[
-                          Icon(Icons.settings),
-                          SizedBox(width: 20),
-                          Text('Settings', style: TextStyle(fontSize: 20.0),)
-                        ],
-                      )
-                    )
-                  )
-                ),
-              ],
-            ),
+          drawer: Provider<User>.value(
+            value: user,
+            child: MyDrawer(),
           ),
           body: tabs[currentIndex],
           bottomNavigationBar: BottomNavyBar(
@@ -347,33 +239,32 @@ class _HomeState extends State<Home> {
             items: [
               BottomNavyBarItem(
                 icon: Icon(Icons.apps),
-                title: Text('Home'),
+                title: Text('Home', style: GoogleFonts.openSans(),),
                 activeColor: Colors.red,
                 textAlign: TextAlign.center,
               ),
               BottomNavyBarItem(
-                icon: Icon(Icons.calendar_today),
-                title: Text('Timetable'),
+                icon: Icon(Icons.calendar_today, key: Key('Timetable-form'),),
+                title: Text('Timetable', style: GoogleFonts.openSans() ),
                 activeColor: Colors.purpleAccent,
                 textAlign: TextAlign.center,
               ),
               BottomNavyBarItem(
                 icon: Icon(Icons.message),
-                title: Text('Messages',
+                title: Text('Messages', style: GoogleFonts.openSans()
                 ),
                 activeColor: Colors.pink,
                 textAlign: TextAlign.center,
               ),
               BottomNavyBarItem(
-                icon: Icon(Icons.perm_identity),
-                title: Text('Profile'),
+                icon: Icon(Icons.perm_identity, key: Key('Profile-form'),),
+                title: Text('Profile', style: GoogleFonts.openSans()),
                 activeColor: Colors.blue,
                 textAlign: TextAlign.center,
               ),
             ],
           ),
-        ),
-      );
+        );
     }
   }
 }

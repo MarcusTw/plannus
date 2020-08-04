@@ -1,9 +1,8 @@
 import 'dart:ui';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:plannusandroidversion/models/timetable/timetable.dart';
+import 'package:plannusandroidversion/models/timetable/timetable_widget.dart';
 import 'package:plannusandroidversion/models/user.dart';
 import 'package:plannusandroidversion/services/auth.dart';
 import 'package:plannusandroidversion/shared/helperwidgets.dart';
@@ -31,8 +30,6 @@ class _ChatsState extends State<Chats> {
 
   @override
   void initState() {
-    // TODO: implement initState
-    //getUserInfo();
     super.initState();
   }
 
@@ -44,22 +41,27 @@ class _ChatsState extends State<Chats> {
   }
 
    initiateSearch() async {
-     await databaseMethods
-        .getUserByHandle(searchTextEditingController.text)
-        .then((value) {
-      setState(() {
-        searchSnapshot = value;
-        otherUid = value.documents[0].documentID;
+    try {
+      await databaseMethods
+          .getUserByHandle(searchTextEditingController.text)
+          .then((value) {
+        setState(() {
+          searchSnapshot = value;
+          otherUid = value.documents[0].documentID;
+        });
       });
-    });
-     await databaseMethods.userTimetables
-         .document(otherUid)
-         .get()
-     .then((value){
-       setState(() {
-         user = User.fromJson(value.data['user']);
-       });
-     });
+      await databaseMethods.userTimetables
+          .document(otherUid)
+          .get()
+          .then((value) {
+        setState(() {
+          user = User.fromJson(value.data['user']);
+        });
+      });
+    } catch (e) {
+      print("User not found!");
+      HelperWidgets.flushbar("User not found!", Icons.warning)..show(context);
+    }
   }
 
   getChatRoomId(String a, String b) {
@@ -107,15 +109,6 @@ class _ChatsState extends State<Chats> {
             })
         : Container();
   }
-
-//  syncTimetable(String handle) async {
-//    User user = await databaseMethods.getOtherUserViaHandle(handle);
-//    return Provider<User>.value(value: user,
-//        child: MaterialApp(
-//          home: Scaffold(
-//              backgroundColor: Colors.yellow, body: TimeTableWidget()),
-//        ));
-//  }
 
   Widget searchTile({String name, String handle,/*String otherUid,*/ User user}) {
     print(name);
@@ -189,9 +182,7 @@ class _ChatsState extends State<Chats> {
                   print(name);
                   Navigator.push(context,
                       MaterialPageRoute(builder: (context) => Provider<User>.value(value: user,
-                          child: MaterialApp(
-                            debugShowCheckedModeBanner: false,
-                            home: Scaffold(
+                          child: Scaffold(
                                 appBar: AppBar(
                                   elevation: 0,
                                   backgroundColor: Colors.deepPurple,
@@ -203,9 +194,8 @@ class _ChatsState extends State<Chats> {
                                   ),
                                 ),
                                 backgroundColor: Colors.deepPurple,
-                                body: TimeTableWidget()),
+                                body: TimeTableWidget(private: true,)),
                           )
-                      )
                       )
                   );
                 },
@@ -244,9 +234,7 @@ class _ChatsState extends State<Chats> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
+    return Scaffold(
         extendBodyBehindAppBar: false,
         backgroundColor: Colors.deepPurple,
         appBar: AppBar(
@@ -326,7 +314,6 @@ class _ChatsState extends State<Chats> {
             ],
           ),
         ),
-      ),
     );
   }
 }

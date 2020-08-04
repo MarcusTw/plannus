@@ -17,7 +17,9 @@ class UserSearch extends SearchDelegate<String> {
   UserSearch(this._querySnapshot, this.requester) {
     try {
       for (var doc in _querySnapshot.documents) {
+        print(doc.documentID);
         final ref = doc.data;
+        print(ref['name']);
         nameAndHandle[ref['name']] = ref['handle'];
       }
       init();
@@ -92,7 +94,7 @@ class UserSearch extends SearchDelegate<String> {
                                       child: Stack(
                                           children: [
                                             MeetingRequestPage(
-                                                meetingHandler, false
+                                                meetingHandler, false, cont
                                             ),
                                             BackButton(
                                               onPressed: () async {
@@ -134,7 +136,7 @@ class UserSearch extends SearchDelegate<String> {
     final names = nameAndHandle.keys.toList();
     final suggestionList = query.isEmpty
         ? []
-        : names.where((name) => name.startsWith(query)).toList();
+        : names.where((name) => name.toLowerCase().startsWith(query.toLowerCase())).toList();
 
     return ListView.builder(
       itemBuilder: (context, index) => ListTile(
@@ -145,7 +147,9 @@ class UserSearch extends SearchDelegate<String> {
             User toAdd = await DatabaseMethods().getUserByName(selectedName)
                 .then((val) => val.documents[0].documentID)
                 .then((uid) async {
-              return await DatabaseMethods(uid: uid).getUserByUID(uid);});
+                  return await DatabaseMethods(uid: uid).getUserByUID(uid);
+                });
+            print(toAdd.name);
             toChecks.add(toAdd);
             query = '';
             showResults(context);
@@ -170,4 +174,3 @@ class UserSearch extends SearchDelegate<String> {
     );
   }
 }
-

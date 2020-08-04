@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:plannusandroidversion/messages/constants.dart';
 import 'package:plannusandroidversion/messages/helperfunctions.dart';
 import 'package:plannusandroidversion/models/user.dart';
@@ -71,7 +73,28 @@ class _ProfileState extends State<Profile> {
     ImagePicker imagePicker = new ImagePicker();
     PickedFile img = await imagePicker.getImage(source: ImageSource.gallery);
     File image = File(img.path);
-    await uploadImage(image);
+    if (img != null) {
+      File image =
+      await ImageCropper.cropImage(sourcePath: img.path,
+          aspectRatio: CropAspectRatio(ratioX: 1, ratioY: 1),
+          compressQuality: 100,
+          maxWidth: 700,
+          maxHeight: 700,
+          compressFormat: ImageCompressFormat.jpg,
+          androidUiSettings: AndroidUiSettings(
+              toolbarColor: Colors.deepPurpleAccent,
+              toolbarTitle: "Image cropper",
+              statusBarColor: Colors.deepPurple.shade500,
+              backgroundColor: Colors.white
+          ));
+      //File image = File(img.path);
+      await uploadImage(image);
+      setState(() {
+        _image = image;
+        Constants.myProfilePhoto = Image.file(image);
+      });
+      return image;
+    }
   }
 
   Future uploadImage(File image) async {
@@ -132,7 +155,31 @@ class _ProfileState extends State<Profile> {
                 child : Column (
                   children: <Widget>[
                     Container(
-                        child: _image != null ? Padding(
+                        child:
+//                        CachedNetworkImage(
+//                          imageUrl: url ?? '',
+//                          placeholder: (context, url) => Padding(
+//                            padding: const EdgeInsets.all(60.0),
+//                            child: CircularProgressIndicator(),
+//                          ),
+//                          imageBuilder: (context, imageprovider) => Padding(
+//                            padding: const EdgeInsets.only(left: 6, top: 0, right: 0, bottom: 0),
+//                            child: CircleAvatar(backgroundImage: imageprovider, radius: 100,),
+//                          ),
+//                          errorWidget: (context, url, error) => Padding(
+//                            padding: const EdgeInsets.all(60),
+//                            child: Container(
+//                              decoration: BoxDecoration(
+//                                color: Colors.blue,
+//                                borderRadius: BorderRadius.circular(100),
+//                              ),
+//                              child: CircleAvatar(
+//                                  backgroundImage: Constants.myProfilePhoto.image,
+//                                  radius: 100),
+//                            ),
+//                          ),
+
+                        _image != null ? Padding(
                           padding: const EdgeInsets.all(60),
                           child: CircleAvatar(backgroundImage:FileImage(_image), radius: 100),
                         ) :
@@ -170,6 +217,7 @@ class _ProfileState extends State<Profile> {
                     Container(
                       margin: EdgeInsets.only(right: 30),
                       child: TextFormField(
+                        key: Key('Name-field'),
                         decoration: InputDecoration(
                             hintText: 'Handle',
                             icon: Icon(Icons.alternate_email, color: Colors.blue),
@@ -208,10 +256,10 @@ class _ProfileState extends State<Profile> {
                               ),
                               onPressed: () async {
                                 //print(handle);
-                                if (newHandle == null|| name == null || name.isEmpty) {
+                                /*if (newHandle == null|| name == null) {
                                   print("are you here!");
                                   HelperWidgets.TopFlushbar("You have missing fields", Icons.account_circle)..show(context);
-                                } else if (formKey.currentState.validate()) {
+                                } else */if (formKey.currentState.validate()) {
                                   await databaseMethods.updateSpecificUserData(
                                       user.uid, name, newHandle);
                                   if (name.isNotEmpty) {
@@ -219,21 +267,8 @@ class _ProfileState extends State<Profile> {
                                     await user.changeName(name);
                                     Constants.myName = name;
                                   }
-    //                              print(AuthService.googleUserId);
-    //                              bool check = await auth.googleSignIn.isSignedIn();
-    //                              if (check) {
-    //                                await databaseMethods.updateSpecificUserData(
-    //                                    user.uid, name, newHandle);
-    //                                await user.changeName(name);
-    //                              } else {
-    //                                await databaseMethods.updateSpecificUserData(
-    //                                    user.uid, name, newHandle);
-    //                                await user.changeName(name);
-    //                              }
-    //                              HelperFunctions.saveUsernameSharedPreferences(name);
                                   HelperFunctions.saveUserHandleSharedPreferences(
                                       handle);
-    //                              Constants.myName = name;
                                   Constants.myHandle = handle;
                                   print(Constants.myName);
                                   print(Constants.myHandle);
@@ -248,17 +283,26 @@ class _ProfileState extends State<Profile> {
                           margin: EdgeInsets.only(left: 3, right:0, top: 0, bottom: 0),
                           child: RaisedButton(
                             onPressed: () async {
-                              ImagePicker imagePicker = new ImagePicker();
-                              PickedFile img = await imagePicker.getImage(source: ImageSource.gallery);
-                              File image = File(img.path);
-                              setState(() {
-                                _image = image;
-                                Constants.myProfilePhoto = Image.file(image);
-                              });
-                              await uploadImage(image);
-                              //Constants.myProfilePhoto = Image.file(image);
-                              print(user.uid + " is here after all time");
+                              File curr = await getImage();
 
+////                              ImagePicker imagePicker = new ImagePicker();
+////                              PickedFile img = await imagePicker.getImage(source: ImageSource.gallery);
+////                              File image = File(img.path);
+//                              setState(() async {
+//                                File curr = await getImage();
+////                                _image = image;
+////                                Constants.myProfilePhoto = Image.file(image);
+//                              });
+//                              ImagePicker imagePicker = new ImagePicker();
+//                              PickedFile img = await imagePicker.getImage(source: ImageSource.gallery);
+//                              File image = File(img.path);
+//                              setState(() {
+//                                _image = image;
+//                                Constants.myProfilePhoto = Image.file(image);
+//                              });
+//                              await uploadImage(image);
+//                              //Constants.myProfilePhoto = Image.file(image);
+//                              print(user.uid + " is here after all time");
                             },
                             color: Colors.blueAccent,
                             child: Shimmer.fromColors(
@@ -282,7 +326,7 @@ class _ProfileState extends State<Profile> {
                       error,
                       style: TextStyle(color: Colors.black, fontSize: 16),
                     ),
-                    SizedBox(height: MediaQuery.of(context).size.height > 707 ? MediaQuery.of(context).size.height - 707 : 707 - MediaQuery.of(context).size.height),
+                    SizedBox(height: MediaQuery.of(context).size.height - 707 > 0 ? MediaQuery.of(context).size.height - 707 : 0)
                   ],
                 ),
               ),

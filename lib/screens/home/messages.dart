@@ -1,19 +1,19 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plannusandroidversion/messages/chats.dart';
 import 'package:plannusandroidversion/messages/chatscreenredirect.dart';
+import 'package:plannusandroidversion/messages/chatsearch.dart';
 import 'package:plannusandroidversion/messages/constants.dart';
 import 'package:plannusandroidversion/models/meeting/meeting_handler.dart';
-import 'package:plannusandroidversion/models/meeting/meeting_request.dart';
-import 'package:plannusandroidversion/models/timetable/timetable.dart';
+import 'package:plannusandroidversion/models/timetable/timetable_widget.dart';
 import 'package:plannusandroidversion/models/user.dart';
 import 'package:plannusandroidversion/screens/drawer/meeting_request_page.dart';
 import 'package:plannusandroidversion/models/user_search.dart';
 import 'package:plannusandroidversion/services/database.dart';
 import 'package:plannusandroidversion/messages/helperfunctions.dart';
-import 'package:plannusandroidversion/services/notificationservice.dart';
 import 'package:provider/provider.dart';
 
 class Messages extends StatefulWidget {
@@ -47,10 +47,12 @@ class _MessagesState extends State<Messages> {
                         ? snapshot.data.documents[index].data['uidCurr'] : snapshot.data.documents[index].data['uidOther']),
                     builder: (context, ss) {
                       User user = Provider.of<User>(context);
-                      return ChatRoomsTile(snapshot.data.documents[index].data['chatroomID']
+                      return user != null ? ChatRoomsTile(snapshot.data.documents[index].data['chatroomID']
                             .toString().replaceAll("_", "").replaceAll(Constants.myName, ""),
-                            snapshot.data.documents[index].data['chatroomID'], user, this.user);
+                            snapshot.data.documents[index].data['chatroomID'], user, this.user,
+                        userUid: user.uid ?? null,) : Container();
                     },
+                    catchError: (context, e) => user,
                   ),
 //                  Divider(
 //                    color: Colors.grey[600],
@@ -64,17 +66,6 @@ class _MessagesState extends State<Messages> {
     );
   }
 
-//  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = new FlutterLocalNotificationsPlugin();
-//  Future initialize() async {
-//    final NotificationService notificationService = new NotificationService();
-//    return await notificationService.initialise();
-//  }
-//  void configLocalNotification() {
-//    var initializationSettingsAndroid = new AndroidInitializationSettings('app_icon');
-//    var initializationSettingsIOS = new IOSInitializationSettings();
-//    var initializationSettings = new InitializationSettings(initializationSettingsAndroid, initializationSettingsIOS);
-//    flutterLocalNotificationsPlugin.initialize(initializationSettings);
-//  }
 
   @override
   void initState() {
@@ -101,9 +92,7 @@ class _MessagesState extends State<Messages> {
   Widget build(BuildContext context) {
     TextEditingController _titleController = new TextEditingController();
     user = Provider.of<User>(context);
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home : Scaffold(
+    return Scaffold(
         backgroundColor: Colors.orange[500],
         //backgroundColor: Colors.orange[300],
 //        decoration: BoxDecoration(
@@ -144,29 +133,28 @@ class _MessagesState extends State<Messages> {
             hoverColor: Colors.green,
             splashColor: Colors.green,
             onPressed: () async {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) =>
-                    Chats(),
-                )
-              );
-//              QuerySnapshot _querySnapshot = Provider.of<QuerySnapshot>(context, listen: false);
-//              if (_querySnapshot != null) {
-//                showSearch(
-//                    context: context,
-//                    delegate: UserSearch(_querySnapshot, user)
-//                );
-//              } else {
-//                await Future.delayed(Duration(seconds: 1))
-//                    .whenComplete(() => _querySnapshot = Provider.of<QuerySnapshot>(context, listen: false));
-//                showSearch(
-//                    context: context,
-//                    delegate: UserSearch(_querySnapshot, user)
-//                );
-//              }
+//              Navigator.of(context).push(
+//                MaterialPageRoute(
+//                  builder: (context) =>
+//                    Chats(),
+//                )
+//              );
+              QuerySnapshot _querySnapshot = await databaseMethods.getUserInfo();
+              if (_querySnapshot != null) {
+                showSearch(
+                    context: context,
+                    delegate: ChatSearch(_querySnapshot)
+                );
+              } else {
+                await Future.delayed(Duration(seconds: 1))
+                    .whenComplete(() => _querySnapshot = Provider.of<QuerySnapshot>(context, listen: false));
+                showSearch(
+                    context: context,
+                    delegate: ChatSearch(_querySnapshot)
+                );
+              }
             },
             label: new Icon(Icons.message, color: Colors.white)),
-      ),
     );
   }
 }
@@ -175,7 +163,8 @@ class ChatRoomsTile extends StatefulWidget {
   final String chatRoomID;
   final User user;
   final User currUser;
-  ChatRoomsTile(this.name, this.chatRoomID, this.user, this.currUser);
+  final String userUid;
+  ChatRoomsTile(this.name, this.chatRoomID, this.user, this.currUser, {this.userUid});
 
   @override
   _ChatRoomsTileState createState() => _ChatRoomsTileState();
@@ -220,23 +209,36 @@ class _ChatRoomsTileState extends State<ChatRoomsTile> {
     });
   }
 
-//  showContactTimetable(User user) {
-//    return MaterialApp(
-//      home: Scaffold(),
-//    );
-//  }
-
   blockContact(){
-    return MaterialApp(
-      home: Scaffold(),
-    );
+    return Scaffold();
   }
 
   DatabaseMethods databaseMethods = new DatabaseMethods();
+  String link;
+
+  Future<void> getImageUrl() async {
+    if (widget.userUid != null) {
+      await FirebaseStorage.instance
+          .ref()
+          .child('${widget.userUid}/profileimage.jpg')
+          .getDownloadURL()
+          .then((value) {
+        setState(() {
+          link = value;
+        });
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    getImageUrl();
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
-    User currUser = Provider.of<User>(context);
+//    User currUser = Provider.of<User>(context);
     return Container(
       height: 80,
       width: 500,
@@ -249,6 +251,25 @@ class _ChatRoomsTileState extends State<ChatRoomsTile> {
         ),
         child: Row(
           children: <Widget>[
+            CachedNetworkImage(
+              imageUrl: link ?? '',
+              useOldImageOnUrlChange: false,
+              placeholder: (context, url) => CircularProgressIndicator(),
+              imageBuilder: (context, imageprovider) => Padding(
+                padding: const EdgeInsets.only(left: 6, top: 0, right: 0, bottom: 0),
+                child: CircleAvatar(backgroundImage: imageprovider, radius: 27.5,),
+              ),
+              errorWidget: (context, url, error) => Container(
+                //padding: EdgeInsets.only(left: 5),
+                margin: EdgeInsets.only(left: 7),
+                height: 54, width: 54,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(54),
+                ),
+                child: Text("${widget.name.isNotEmpty ? widget.name.substring(0,1).toUpperCase() : "-"}",
+                  style: TextStyle(fontSize: 18,color: Colors.white),),
             SizedBox(width: 5),
             Container(
               //padding: EdgeInsets.only(left: 5),
@@ -259,9 +280,19 @@ class _ChatRoomsTileState extends State<ChatRoomsTile> {
                 color: Colors.blue,
                 borderRadius: BorderRadius.circular(54),
               ),
-              child: Text("${widget.name.isNotEmpty ? widget.name.substring(0,1).toUpperCase() : "-"}",
-              style: TextStyle(fontSize: 18,color: Colors.white),),
             ),
+//            Container(
+//              //padding: EdgeInsets.only(left: 5),
+//              margin: EdgeInsets.only(left: 7),
+//              height: 54, width: 54,
+//              alignment: Alignment.center,
+//              decoration: BoxDecoration(
+//                color: Colors.blue,
+//                borderRadius: BorderRadius.circular(54),
+//              ),
+//              child: Text("${widget.name.isNotEmpty ? widget.name.substring(0,1).toUpperCase() : "-"}",
+//              style: TextStyle(fontSize: 18,color: Colors.white),),
+//            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(15, 8, 8, 8),
               child: Container(width: 100,
@@ -311,7 +342,7 @@ class _ChatRoomsTileState extends State<ChatRoomsTile> {
                                 child: Stack(
                                     children: [
                                       MeetingRequestPage(
-                                          new MeetingHandler(widget.currUser, toChecks), true
+                                          new MeetingHandler(widget.currUser, toChecks), true, cont,
                                       ),
                                       BackButton(
                                         onPressed: () async {
@@ -336,10 +367,9 @@ class _ChatRoomsTileState extends State<ChatRoomsTile> {
 //          );
                 Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) =>
-                  Provider<User>.value(value: widget.user,
-                    child: MaterialApp(
-                      debugShowCheckedModeBanner: false,
-                      home: Scaffold(
+                  Provider<User>.value(
+                    value: widget.user,
+                    child: Scaffold(
 //                        appBar: AppBar(
 //                          elevation: 0,
 //                          backgroundColor: Colors.transparent,
@@ -351,7 +381,7 @@ class _ChatRoomsTileState extends State<ChatRoomsTile> {
 //                          ),
 //                        ),
                           backgroundColor: Colors.white,
-                          body: TimeTableWidget(),
+                          body: TimeTableWidget(private: true),
                         floatingActionButton: FloatingActionButton.extended(
                             backgroundColor: Colors.transparent,
                             elevation: 5,
@@ -362,7 +392,6 @@ class _ChatRoomsTileState extends State<ChatRoomsTile> {
                       )
                       ),
                     )
-                  )
                   )
                 )
                 } else if (choice == 'Block'){

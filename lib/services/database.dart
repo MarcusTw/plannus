@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:plannusandroidversion/models/meeting/meeting_request.dart';
+import 'package:plannusandroidversion/models/notifications/custom_notification.dart';
+import 'package:plannusandroidversion/models/rating/rateable.dart';
 import 'package:plannusandroidversion/models/timetable/timetable.dart';
+import 'package:plannusandroidversion/models/timetable/timetable_event.dart';
 import 'package:plannusandroidversion/models/todo/todo_models/todo_data.dart';
 import 'package:plannusandroidversion/models/user.dart';
 
@@ -12,9 +15,14 @@ class DatabaseMethods {
   final CollectionReference tokens = Firestore.instance.collection("userNotificationTokens");
   final CollectionReference userTimetables = Firestore.instance.collection("userTimetables");
   final CollectionReference meetingRequests = Firestore.instance.collection("meetings");
+  final CollectionReference ratings = Firestore.instance.collection("ratings");
 
   Stream<String> getHandleStream() {
     return users.document(uid).snapshots().map((ss) => ss.data['handle']);
+  }
+
+  Future<QuerySnapshot> getUserInfo() async {
+    return await users.getDocuments();
   }
 
   Stream<User> getUserStream2() {
@@ -144,7 +152,7 @@ class DatabaseMethods {
     return users.snapshots();
   }
 
-  createChatRoom(String chatRoomId, chatRoomMap){
+  void createChatRoom(String chatRoomId, chatRoomMap){
     Firestore.instance
         .collection("ChatRoom")
         .document(chatRoomId)
@@ -154,7 +162,7 @@ class DatabaseMethods {
     });
   }
 
-  updateChatRoom(String chatRoomID, chatRoomMap) {
+  void updateChatRoom(String chatRoomID, chatRoomMap) {
     Firestore.instance
         .collection("ChatRoom")
         .document(chatRoomID)
@@ -164,7 +172,7 @@ class DatabaseMethods {
         });
   }
 
-  addConversationMessages(String chatRoomID, messageMap) {
+  void addConversationMessages(String chatRoomID, messageMap) {
     Firestore.instance
         .collection("ChatRoom")
         .document(chatRoomID)
@@ -201,7 +209,7 @@ class DatabaseMethods {
   //##########################//
   Future<void> addMeetingRequest(MeetingRequest meetingRequest) async {
     User currUser = await userTimetables.document(uid).get().then((val) => User.fromJson(val['user']));
-    currUser.requests.add(meetingRequest);
+    currUser.requests.add(CustomNotification.mrNotification(meetingRequest));
     return userTimetables.document(uid).updateData({
       'user' : currUser.toJson()
     });
@@ -218,9 +226,80 @@ class DatabaseMethods {
   Future<String> getHandleByUID(String uid) async {
     return users.document(uid).get().then((val) => val.data['handle']);
   }
+  
+  Future<User> getUserTimetableByHandle(String handle) async {
+    String userUid = await users.where("handle", isEqualTo: handle)
+        .getDocuments()
+        .then((value) => value.documents.first.documentID);
+    print(userUid);
+    return await retrieveTimetable(userUid);
+  }
 
   Future<String> getNameByUID(String uid) async {
     return users.document(uid).get().then((val) => val.data['name']);
   }
 
+  Future<void> addRatedEvent(TimeTableEvent event, double rating, String review, String voterName) async {
+    QuerySnapshot qs = await ratings.where('eventTitle', isEqualTo: event.name.toLowerCase()).getDocuments();
+
+    if (qs != null && qs.documents.length != 0) {
+      print('that is done =========================================');
+      Rateable currRating = Rateable.fromJson(qs.documents[0].data['rating']);
+      if (currRating.reviews.containsKey(voterName)) {
+        throw AssertionError("You have already reviewed this event");
+      } else {
+        currRating.rate(rating);
+        currRating.reviews[voterName] = review;
+        ratings.document(qs.documents[0].documentID).updateData({
+          'rating': currRating.toJson()
+        });
+      }
+    } else {
+      print('this is done ========================================');
+      Map<String, String> reviews = {voterName: review};
+      Rateable currRating = Rateable(event, rating, 1, reviews);
+      ratings.document(event.id).setData({
+        'rating': currRating.toJson(),
+        'eventTitle' : event.name.toLowerCase(),
+      });
+    }
+  }
+
+  Future<Rateable> getEventByTitle(String title) async {
+    dynamic rate = await ratings.where('eventTitle', isEqualTo: title.toLowerCase())
+        .getDocuments()
+        .then((value) => value.documents[0].data['rating']);
+    return Rateable.fromJson(rate);
+  }
+
+  Future<QuerySnapshot> getRateQuerySnapshots() async {
+    return await ratings.getDocuments();
+  }
+
+  Stream<QuerySnapshot> getRateable() {
+    return ratings.snapshots();
+  }
+
+  Future<bool> checkRated(String voterName, String title) async {
+    try {
+      bool ans = await ratings.where('eventTitle', isEqualTo: title.toLowerCase())
+          .getDocuments()
+          .then((val) => Rateable.fromJson(val.documents[0].data['rating']))
+          .then((rateable) => rateable.reviews.containsKey(voterName));
+      return ans;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<Rateable>> getRateableList() async {
+    List<Rateable> result = new List<Rateable>();
+    QuerySnapshot qs = await ratings.getDocuments();
+    if (qs.documents.length != 0) {
+      for (var doc in qs.documents) {
+        result.add(Rateable.fromJson(doc.data['rating']));
+      }
+    }
+    return result;
+  }
 }

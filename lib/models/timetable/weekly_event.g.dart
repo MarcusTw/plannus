@@ -1,32 +1,31 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'activity.dart';
+part of 'weekly_event.dart';
 
 // **************************************************************************
 // JsonSerializableGenerator
 // **************************************************************************
 
-Activity _$ActivityFromJson(Map<String, dynamic> json) {
-  return Activity(
-    json['startDate'] == null
-        ? null
-        : DateTime.parse(json['startDate'] as String),
+WeeklyEvent _$WeeklyEventFromJson(Map<String, dynamic> json) {
+  return WeeklyEvent(
+    json['day'] as int,
     json['timing'] == null
         ? null
         : ScheduleTiming.fromJson(json['timing'] as Map<String, dynamic>),
     json['id'] as String,
     json['name'] as String,
     json['isImportant'] as bool,
+    json['startDate'] == null
+        ? null
+        : DateTime.parse(json['startDate'] as String),
+    json['endDate'] == null ? null : DateTime.parse(json['endDate'] as String),
     json['location'] as String,
     json['isPrivate'] as bool,
-  )
-    ..endDate = json['endDate'] == null
-        ? null
-        : DateTime.parse(json['endDate'] as String)
-    ..isWeekly = json['isWeekly'] as bool;
+  )..isWeekly = json['isWeekly'] as bool;
 }
 
-Map<String, dynamic> _$ActivityToJson(Activity instance) => <String, dynamic>{
+Map<String, dynamic> _$WeeklyEventToJson(WeeklyEvent instance) =>
+    <String, dynamic>{
       'timing': instance.timing?.toJson(),
       'id': instance.id,
       'name': instance.name,
@@ -36,4 +35,5 @@ Map<String, dynamic> _$ActivityToJson(Activity instance) => <String, dynamic>{
       'isWeekly': instance.isWeekly,
       'location': instance.location,
       'isPrivate': instance.isPrivate,
+      'day': instance.day,
     };

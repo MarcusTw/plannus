@@ -16,7 +16,7 @@ class AddTaskPage extends StatefulWidget {
 
 class _AddTaskPageState extends State<AddTaskPage> {
   DateTime _selectedDate = DateTime.now();
-  final _textTaskControler = TextEditingController();
+  final _textTaskController = TextEditingController();
 
   Future _pickDate() async {
     DateTime datepick = await showDatePicker(
@@ -32,7 +32,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   @override
   Widget build(BuildContext context) {
-    _textTaskControler.clear();
+    _textTaskController.clear();
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -46,8 +46,20 @@ class _AddTaskPageState extends State<AddTaskPage> {
           SizedBox(
             height: 24,
           ),
-          CustomTextField(
-              labelText: 'Enter task name', controller: _textTaskControler),
+          TextFormField(
+            key: Key('Task name'),
+              decoration: InputDecoration(
+              hintText: 'Enter task name',
+//              icon: Icon(Icons.assignment, color: Colors.blue),
+              fillColor: Colors.white,
+              filled: true,
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.grey[300], width: 2),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.deepPurpleAccent, width: 2),
+              )
+          ), controller: _textTaskController),
           SizedBox(height: 12),
           CustomDateTimePicker(
             icon: Icons.date_range,
@@ -62,7 +74,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               Navigator.of(context).pop();
             },
             onSave: () async {
-              if (_textTaskControler.text == "") {
+              if (_textTaskController.text == "") {
                 print("data not found");
               } else {
                 TodoData updated = await DatabaseMethods(uid: Provider.of<User>(context, listen: false).uid).getUserTodoData();
@@ -70,7 +82,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 date: _selectedDate,
                 time: DateTime.now(),
                 isFinish: false,
-                task: _textTaskControler.text,
+                task: _textTaskController.text,
                 description: "",
                 todoType: TodoType.TYPE_TASK.index,
                 id: updated.count
